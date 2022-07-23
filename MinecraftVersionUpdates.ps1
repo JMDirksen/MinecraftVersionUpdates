@@ -6,7 +6,7 @@ else { "Config file MinecraftVersionUpdates.config.ps1 not found"; exit }
 # Mojang urls
 $versionsJsonUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
 
-$dbFile = "MinecraftVersionUpdates.json"
+$dbFile = "$PSScriptRoot\MinecraftVersionUpdates.json"
 
 # Load db
 $db = Get-Content $dbFile -ErrorAction SilentlyContinue | ConvertFrom-Json -AsHashtable
@@ -54,4 +54,3 @@ $db.lastCheck.version = $version
 
 # Save db
 $db | ConvertTo-Json | Out-File $dbFile
-$db | ConvertTo-Json
