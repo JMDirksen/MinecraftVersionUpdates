@@ -9,15 +9,15 @@ $versionsJsonUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.jso
 $dbFile = "$PSScriptRoot\MinecraftVersionUpdates.json"
 
 function Main {
-	Load-Db
+	Open-Db
 	
-	Check-JavaType "release"
-	Check-JavaType "snapshot"
+	Invoke-CheckJavaVersion "release"
+	Invoke-CheckJavaVersion "snapshot"
 
 	Save-Db
 }
 
-function Load-Db {
+function Open-Db {
 	$Global:db = Get-Content $dbFile -ErrorAction SilentlyContinue | ConvertFrom-Json -AsHashtable
 	if ($null -eq $db) {
 		$Global:db = @{}
@@ -34,7 +34,7 @@ function Save-Db {
 	$db | ConvertTo-Json -Depth 10 | Out-File $dbFile
 }
 
-function Check-JavaType ($type) {
+function Invoke-CheckJavaVersion ($type) {
 	$latestJava = Get-LatestJava -type $type
 	# New version
 	if ($latestJava.version -ne $db.variant.java.$type.lastCheck.version) {
