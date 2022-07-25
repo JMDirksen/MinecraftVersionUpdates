@@ -8,49 +8,77 @@ $versionsJsonUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.jso
 
 $dbFile = "$PSScriptRoot\MinecraftVersionUpdates.json"
 
-# Load db
-$db = Get-Content $dbFile -ErrorAction SilentlyContinue | ConvertFrom-Json -AsHashtable
-if ($null -eq $db) {
-	$db = @{}
-	$db.versions = @{}
-}
+function Main {
+	Load-Db
 	
-# Resolve latest version
-$versionsJson = Invoke-RestMethod $versionsJsonUrl
-$version = $versionsJson.latest.release
+	Check-JavaType "release"
+	Check-JavaType "snapshot"
 
-# New version
-if ($version -ne $db.lastCheck.version) {
-	"New version $version"
+	Save-Db
+}
 
+function Load-Db {
+	$Global:db = Get-Content $dbFile -ErrorAction SilentlyContinue | ConvertFrom-Json -AsHashtable
+	if ($null -eq $db) {
+		$Global:db = @{}
+		$db.variant = @{}
+		$db.variant.java = @{}
+		$db.variant.java.release = @{}
+		$db.variant.java.release.versions = @{}
+		$db.variant.java.snapshot = @{}
+		$db.variant.java.snapshot.versions = @{}
+	}
+}
+
+function Save-Db {
+	$db | ConvertTo-Json -Depth 10 | Out-File $dbFile
+}
+
+function Check-JavaType ($type) {
+	$latestJava = Get-LatestJava -type $type
+	# New version
+	if ($latestJava.version -ne $db.variant.java.$type.lastCheck.version) {
+		"New version " + $latestJava.version
+		# Store version
+		$db.variant.java.$type.versions[$latestJava.version] = $latestJava
+		Send-Mail $type $latestJava.version $latestJava.clientUrl $latestJava.serverUrl
+	}
+	# Store lastCheck
+	$db.variant.java.$type.lastCheck = @{
+		datetime = Get-Date -Format "yyyy-MM-dd HH:mm"
+		version  = $latestJava.version
+	}
+}
+
+function Get-LatestJava ($type) {
+	# Resolve latest version
+	$versionsJson = Invoke-RestMethod $versionsJsonUrl
+	$version = $versionsJson.latest.$type
+	
 	# Get download URL
 	$versionsJsonVersion = $versionsJson.versions | Where-Object { $_.id -eq $version }
 	$versionJsonUrl = $versionsJsonVersion.url
 	$versionJson = Invoke-RestMethod $versionJsonUrl
+	$clientUrl = $versionJson.downloads.client.url
+	$serverUrl = $versionJson.downloads.server.url
+	
+	@{
+		version   = $version
+		clientUrl = $clientUrl
+		serverUrl = $serverUrl
+		datetime  = Get-Date -Format "yyyy-MM-dd HH:mm"
+	}
+}
 
-	# Store version
-	$db.versions[$version] = @{}
-	$db.versions[$version].datetime = Get-Date -Format "yyyy-MM-dd HH:mm"
-	$db.versions[$version].version = $version
-	$db.versions[$version].clientUrl = $versionJson.downloads.client.url
-	$db.versions[$version].serverUrl = $versionJson.downloads.server.url
-
-	# Send e-mail
-	"Sending E-mail"
-	$Subject = "New Minecraft Java release version $version"
-	$Body = "Minecraft Java release version $version has been released.`n"
-	$Body += "Client jar: " + $versionJson.downloads.client.url + "`n"
-	$Body += "Server jar: " + $versionJson.downloads.server.url + "`n"
+function Send-Mail ($type, $version, $clientUrl, $serverUrl) {
+	$subject = "New Minecraft Java $type version $version"
+	$body = "Minecraft Java $type version $version has been released.`n"
+	$body += "Client jar: $clientUrl`n"
+	$body += "Server jar: $serverUrl`n"
 	$SMTPClient = New-Object Net.Mail.SmtpClient($SmtpServer, 587)
 	$SMTPClient.EnableSsl = $true
 	$SMTPClient.Credentials = New-Object System.Net.NetworkCredential($SMTPUser, $SMTPPass)
-	$SMTPClient.Send($EmailFrom, $EmailTo, $Subject, $Body)
+	$SMTPClient.Send($EmailFrom, $EmailTo, $subject, $body)
 }
 
-# Store last check
-$db.lastCheck = @{}
-$db.lastCheck.datetime = Get-Date -Format "yyyy-MM-dd HH:mm"
-$db.lastCheck.version = $version
-
-# Save db
-$db | ConvertTo-Json | Out-File $dbFile
+Main
