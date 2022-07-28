@@ -38,6 +38,8 @@ function Save-Db {
 function Invoke-CheckVersion ($variant, $type) {
 	if ($variant -eq 'java') { $latest = Get-LatestJava -type $type }
 	if ($variant -eq 'bedrock') { $latest = Get-LatestBedrock }
+	if (-not $latest) { return $false }
+	
 	# New version
 	if ($latest.version -ne $db.variant.$variant.$type.lastCheck.version) {
 		"New version " + $latest.version
@@ -65,6 +67,7 @@ function Get-LatestJava ($type) {
 	$clientUrl = $versionJson.downloads.client.url
 	$serverUrl = $versionJson.downloads.server.url
 	
+	if (-not $version) { return $false }
 	@{
 		version  = $version
 		info1    = "Client jar: $clientUrl"
@@ -82,6 +85,7 @@ function Get-LatestBedrock {
 	$windowsServerUrl = ($content | Select-String 'https.*/bin-win/bedrock-server.*\.zip').Matches.Value
 	$linuxServerUrl = ($content | Select-String 'https.*/bin-linux/bedrock-server.*\.zip').Matches.Value
 
+	if (-not $version) { return $false }
 	@{
 		version  = $version
 		info1    = "Windows Server: $windowsServerUrl"
