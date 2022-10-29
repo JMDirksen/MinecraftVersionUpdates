@@ -1,9 +1,9 @@
 # Include config
-$configFile = "$PSScriptRoot\MinecraftVersionUpdates.config.ps1"
+$configFile = "$PSScriptRoot\config.ps1"
 if (Test-Path $configFile) { . $configFile }
-else { "Config file MinecraftVersionUpdates.config.ps1 not found"; exit }
+else { "Config file config.ps1 not found"; exit }
 
-$dbFile = "$PSScriptRoot\MinecraftVersionUpdates.json"
+$dbFile = "$PSScriptRoot\db.ps1"
 
 function Main {
 	Open-Db
@@ -16,23 +16,24 @@ function Main {
 }
 
 function Open-Db {
-	$Global:db = Get-Content $dbFile -ErrorAction SilentlyContinue | ConvertFrom-Json -AsHashtable
-	if ($null -eq $db) {
-		$Global:db = @{}
-		$db.variant = @{}
-		$db.variant.java = @{}
-		$db.variant.java.release = @{}
-		$db.variant.java.release.versions = @{}
-		$db.variant.java.snapshot = @{}
-		$db.variant.java.snapshot.versions = @{}
-		$db.variant.bedrock = @{}
-		$db.variant.bedrock.release = @{}
-		$db.variant.bedrock.release.versions = @{}
+	try {
+		$Global:db = . $dbFile
+	}
+	catch {
+		$Global:db = @{
+			variant = @{
+				bedrock = @{release = @{versions = @{} } }
+				java    = @{
+					snapshot = @{versions = @{} }
+					release  = @{versions = @{} }
+				}
+			}
+		}
 	}
 }
 
 function Save-Db {
-	$db | ConvertTo-Json -Depth 10 | Out-File $dbFile
+	$db | ConvertTo-Expression | Out-File $dbFile
 }
 
 function Invoke-CheckVersion ($variant, $type) {
@@ -78,13 +79,12 @@ function Get-LatestJava ($type) {
 
 function Get-LatestBedrock {
 	$uri = 'https://www.minecraft.net/en-us/download/server/bedrock'
-	$userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'
-	$headers = @{'Accept' = '*/*'; 'Accept-Encoding' = 'identity'; 'Accept-Language' = 'en'; }
-	$content = (Invoke-WebRequest -Uri $uri -UserAgent $userAgent -Headers $headers -TimeoutSec 5).Content
-	$version = ($content | Select-String '/bedrock-server-(?<version>.*).zip"').Matches[0].Groups['version'].Value
-	$windowsServerUrl = ($content | Select-String 'https.*/bin-win/bedrock-server.*\.zip').Matches.Value
-	$linuxServerUrl = ($content | Select-String 'https.*/bin-linux/bedrock-server.*\.zip').Matches.Value
-
+	$headers = @{'Accept-Language' = '*' }
+	$links = (Invoke-WebRequest -Uri $uri -Headers $headers -TimeoutSec 5).Links | select href
+	$windowsServerUrl = ($links | Where-Object { $_.href -like "https://minecraft.azureedge.net/bin-win/bedrock-server*" }).href
+	$linuxServerUrl = ($links | Where-Object { $_.href -like "https://minecraft.azureedge.net/bin-linux/bedrock-server*" }).href
+	$version = ($windowsServerUrl | Select-String 'bedrock-server-(?<version>.*).zip').Matches[0].Groups['version'].Value
+	
 	if (-not $version) { return $false }
 	@{
 		version  = $version

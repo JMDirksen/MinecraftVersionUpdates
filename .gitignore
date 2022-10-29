@@ -1,3 +1,2 @@
-
-*.json
-MinecraftVersionUpdates.config.ps1
+config.ps1
+db.ps1
