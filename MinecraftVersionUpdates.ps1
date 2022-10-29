@@ -80,7 +80,7 @@ function Get-LatestJava ($type) {
 function Get-LatestBedrock {
 	$uri = 'https://www.minecraft.net/en-us/download/server/bedrock'
 	$headers = @{'Accept-Language' = '*' }
-	$links = (Invoke-WebRequest -Uri $uri -Headers $headers -TimeoutSec 5).Links | select href
+	$links = (Invoke-WebRequest -Uri $uri -Headers $headers -TimeoutSec 5).Links | Select-Object href
 	$windowsServerUrl = ($links | Where-Object { $_.href -like "https://minecraft.azureedge.net/bin-win/bedrock-server*" }).href
 	$linuxServerUrl = ($links | Where-Object { $_.href -like "https://minecraft.azureedge.net/bin-linux/bedrock-server*" }).href
 	$version = ($windowsServerUrl | Select-String 'bedrock-server-(?<version>.*).zip').Matches[0].Groups['version'].Value
