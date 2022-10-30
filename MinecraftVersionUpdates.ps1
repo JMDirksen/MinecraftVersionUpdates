@@ -25,9 +25,12 @@ function Main {
 }
 
 function Open-Db {
+	# Read db
 	try {
 		$Global:db = . $dbFile
 	}
+
+	# New db
 	catch {
 		$Global:db = @{
 			variant = @{
@@ -57,6 +60,7 @@ function Invoke-CheckVersion ($variant, $type) {
 		$db.variant.$variant.$type.versions[$latest.version] = $latest
 		Send-Mail $variant $type $latest.version $latest.info1 $latest.info2
 	}
+
 	# Store lastCheck
 	$db.variant.$variant.$type.lastCheck = @{
 		datetime = Get-Date -Format "yyyy-MM-dd HH:mm"
@@ -89,16 +93,16 @@ function Get-LatestJava ($type) {
 function Get-LatestBedrock {
 	$uri = 'https://www.minecraft.net/en-us/download/server/bedrock'
 	$headers = @{'Accept-Language' = '*' }
-	$links = (Invoke-WebRequest -Uri $uri -Headers $headers -TimeoutSec 5).Links | Select-Object href
-	$windowsServerUrl = ($links | Where-Object { $_.href -like "https://minecraft.azureedge.net/bin-win/bedrock-server*" }).href
-	$linuxServerUrl = ($links | Where-Object { $_.href -like "https://minecraft.azureedge.net/bin-linux/bedrock-server*" }).href
-	$version = ($windowsServerUrl | Select-String 'bedrock-server-(?<version>.*).zip').Matches[0].Groups['version'].Value
+	$links = (Invoke-WebRequest -Uri $uri -Headers $headers -TimeoutSec 5).Links
+	$windowsUrl = ($links | Where-Object { $_.href -like "*/bin-win/bedrock-server-*" }).href
+	$linuxUrl = ($links | Where-Object { $_.href -like "*/bin-linux/bedrock-server-*" }).href
+	$version = ($linuxUrl | Select-String 'server-(?<ver>.*).zip').Matches[0].Groups['ver'].Value
 	
 	if (-not $version) { return $false }
 	@{
 		version  = $version
-		info1    = "Windows Server: $windowsServerUrl"
-		info2    = "Linux Server: $linuxServerUrl"
+		info1    = "Windows Server: $windowsUrl"
+		info2    = "Linux Server: $linuxUrl"
 		datetime = Get-Date -Format "yyyy-MM-dd HH:mm"
 	}
 }
