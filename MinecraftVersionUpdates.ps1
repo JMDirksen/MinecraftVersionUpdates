@@ -1,7 +1,16 @@
 # Include config
 $configFile = "$PSScriptRoot\config.ps1"
 if (Test-Path $configFile) { . $configFile }
-else { "Config file config.ps1 not found"; exit }
+else {
+	"Config file config.ps1 not found, please copy and modify config.template.ps1"
+	exit
+}
+
+# Check dependency ConvertTo=Expression
+if (-Not (Get-InstalledScript "ConvertTo-Expression" -ErrorAction SilentlyContinue)) {
+	"Please install ConvertTo-Expression https://github.com/iRon7/ConvertTo-Expression"
+	exit
+}
 
 $dbFile = "$PSScriptRoot\db.ps1"
 
