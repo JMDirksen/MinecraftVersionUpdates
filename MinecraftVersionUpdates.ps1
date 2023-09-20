@@ -6,7 +6,7 @@ else {
 	exit
 }
 
-# Check dependency ConvertTo=Expression
+# Check dependency ConvertTo-Expression
 if (-Not (Get-InstalledScript "ConvertTo-Expression" -ErrorAction SilentlyContinue)) {
 	"Please install ConvertTo-Expression https://github.com/iRon7/ConvertTo-Expression"
 	exit
@@ -54,7 +54,7 @@ function Invoke-CheckVersion ($variant, $type) {
 	if (-not $latest) { return $false }
 	
 	# New version
-	if ($latest.version -ne $db.variant.$variant.$type.lastCheck.version) {
+	if ($latest.version -ne $db.variant.$variant.$type.lastCheck.version -and -not $db.variant.$variant.$type.versions[$latest.version]) {
 		"New version " + $latest.version
 		# Store version
 		$db.variant.$variant.$type.versions[$latest.version] = $latest
