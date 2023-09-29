@@ -1,18 +1,4 @@
-# Include config
-$configFile = "$PSScriptRoot\config.ps1"
-if (Test-Path $configFile) { . $configFile }
-else {
-	"Config file config.ps1 not found, please copy and modify config.template.ps1"
-	exit
-}
-
-# Check dependency ConvertTo-Expression
-if (-Not (Get-InstalledScript "ConvertTo-Expression" -ErrorAction SilentlyContinue)) {
-	"Please install ConvertTo-Expression https://github.com/iRon7/ConvertTo-Expression"
-	exit
-}
-
-$dbFile = "$PSScriptRoot\db.ps1"
+$dbFile = Join-Path $PSScriptRoot "db.xml"
 
 function Main {
 	Open-Db
@@ -27,7 +13,7 @@ function Main {
 function Open-Db {
 	# Read db
 	try {
-		$Global:db = . $dbFile
+		$Global:db = Import-Clixml $dbFile
 	}
 
 	# New db
@@ -40,12 +26,20 @@ function Open-Db {
 					release  = @{versions = @{} }
 				}
 			}
+			email = @{
+				from = Read-Host "From"
+				to = Read-Host "To"
+				server = Read-Host "Server"
+				port = Read-Host "Port"
+				usessl = $true
+				credential = Get-Credential
+			}
 		}
 	}
 }
 
 function Save-Db {
-	$db | ConvertTo-Expression | Out-File $dbFile
+	$db | Export-Clixml $dbFile
 }
 
 function Invoke-CheckVersion ($variant, $type) {
@@ -113,10 +107,19 @@ function Send-Mail ($variant, $type, $version, $info1, $info2) {
 	$body = "Minecraft $variant $type version $version has been released.`n"
 	$body += "$info1`n"
 	$body += "$info2`n"
-	$SMTPClient = New-Object Net.Mail.SmtpClient($SmtpServer, 587)
-	$SMTPClient.EnableSsl = $true
-	$SMTPClient.Credentials = New-Object System.Net.NetworkCredential($SMTPUser, $SMTPPass)
-	$SMTPClient.Send($EmailFrom, $EmailTo, $subject, $body)
+
+	$params = @{
+		From = $db.email.from
+		To = $db.email.to
+		Subject = $subject
+		Body = $body
+		BodyAsHtml = $true
+		SmtpServer = $db.email.server
+		Port = $db.email.port
+		UseSsl = $db.email.usessl
+		Credential = $db.email.credential
+	}
+	Send-MailMessage @params
 }
 
 Main
